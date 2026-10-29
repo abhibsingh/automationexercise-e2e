@@ -29,9 +29,8 @@ export class FilterSidebar {
     await this.brands.getByRole('link', { name: new RegExp(`${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') }).click();
   }
 
-  async openCategory(parent: string, child: string): Promise<void> {
-    await this.categories.getByRole('link', { name: new RegExp(`^\\s*${parent}\\s*$`, 'i') }).click();
-    const panel = this.page.locator(`#${parent}`);
-    await panel.getByRole('link', { name: new RegExp(`^\\s*${child}\\s*$`, 'i') }).click();
+  async openCategory(parent: string, categoryId: number): Promise<void> {
+    await this.categories.locator(`a[href="#${parent}"]`).click();
+    await this.page.locator(`#${parent} a[href="/category_products/${categoryId}"]`).click();
   }
 }
