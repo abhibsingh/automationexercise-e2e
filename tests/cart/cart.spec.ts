@@ -34,6 +34,7 @@ test.describe('Cart', () => {
 
     await test.step('remove the last product shows the empty state', async () => {
       await cartPage.remove(added[1].id);
+      await expect(cartPage.emptyMessage).toBeVisible();
       await expect(cartPage.emptyMessage).toContainText(/cart is empty/i);
     });
   });
