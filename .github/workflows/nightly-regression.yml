@@ -1,0 +1,110 @@
+name: Nightly regression
+
+on:
+  schedule:
+    - cron: '23 20 * * *'
+  workflow_dispatch:
+    inputs:
+      cross_browser:
+        description: Also run smoke on Firefox, WebKit and mobile
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+env:
+  CROSS_BROWSER: ${{ inputs.cross_browser && '1' || '' }}
+
+jobs:
+  shards:
+    name: shard ${{ matrix.shard }}/3
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: npm }
+      - run: npm ci
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: pw-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+      - run: npx playwright install --with-deps ${{ env.CROSS_BROWSER && 'chromium firefox webkit' || 'chromium' }}
+      - run: npx playwright test --grep-invert @quarantine --shard=${{ matrix.shard }}/3
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: blob-shard-${{ matrix.shard }}
+          path: blob-report
+          retention-days: 3
+
+  quarantine:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: npm }
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:quarantine -- --pass-with-no-tests
+
+  report:
+    if: ${{ !cancelled() }}
+    needs: [shards]
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.pages.outputs.page_url }}
+    env:
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: npm }
+      - run: npm ci
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: blob-*
+          path: all-blob-reports
+          merge-multiple: true
+      - name: Merge reports
+        run: |
+          npx playwright merge-reports --reporter html ./all-blob-reports
+          PLAYWRIGHT_JSON_OUTPUT_NAME=merged-results.json npx playwright merge-reports --reporter json ./all-blob-reports
+      - uses: actions/cache/restore@v4
+        with:
+          path: flaky-history
+          key: flaky-history-${{ github.run_id }}
+          restore-keys: flaky-history-
+      - name: Flaky test summary
+        run: npm run flaky:report -- merged-results.json flaky-history >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/cache/save@v4
+        with:
+          path: flaky-history
+          key: flaky-history-${{ github.run_id }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: regression-report-${{ github.run_id }}
+          path: playwright-report
+          retention-days: 30
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: playwright-report
+      - uses: actions/deploy-pages@v4
+        id: pages
+        continue-on-error: true
+      - name: Slack notification
+        if: ${{ env.SLACK_WEBHOOK_URL != '' }}
+        env:
+          RESULT: ${{ needs.shards.result == 'success' && 'passed' || 'FAILED' }}
+        run: |
+          curl -sS -X POST -H 'Content-type: application/json' "$SLACK_WEBHOOK_URL" \
+            --data "{\"text\":\"E2E regression $RESULT: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"}"
