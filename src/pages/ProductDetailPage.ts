@@ -38,7 +38,7 @@ export class ProductDetailPage extends BasePage {
   }
 
   async open(id: number): Promise<void> {
-    await this.page.goto(routes.productDetails(id));
+    await this.page.goto(routes.productDetails(id), { waitUntil: 'domcontentloaded' });
   }
 
   field(label: 'Category' | 'Availability' | 'Condition' | 'Brand'): Locator {

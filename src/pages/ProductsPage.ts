@@ -28,7 +28,7 @@ export class ProductsPage extends BasePage {
 
   async search(term: string): Promise<void> {
     await this.searchInput.fill(term);
-    await Promise.all([this.page.waitForURL(/[?&]search=/), this.searchButton.click()]);
+    await Promise.all([this.page.waitForURL(/[?&]search=/, { waitUntil: 'domcontentloaded' }), this.searchButton.click()]);
     await expect(this.grid.title).toHaveText(/searched products/i);
   }
 
