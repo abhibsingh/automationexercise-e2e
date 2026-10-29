@@ -10,7 +10,7 @@ test.describe('Category and brand filters', () => {
 
     for (const badge of badges) {
       await test.step(`${badge.name}: ${badge.count}`, async () => {
-        await page.goto(routes.brand(badge.name));
+        await page.goto(routes.brand(badge.name), { waitUntil: 'domcontentloaded' });
         await expect(productsPage.grid.title).toContainText(badge.name, { ignoreCase: true });
         await expect(productsPage.grid.cards).toHaveCount(badge.count);
       });
@@ -35,14 +35,14 @@ test.describe('Category and brand filters', () => {
       productDetail,
     }) => {
       await productsPage.goto();
-      await productsPage.filters.openCategory(cat.parent, cat.name);
+      await productsPage.filters.openCategory(cat.parent, cat.id);
 
       await expect(productsPage.grid.title).toContainText(`${cat.parent} - ${cat.name} Products`, { ignoreCase: true });
       const count = await productsPage.grid.count();
       expect(count).toBeGreaterThan(0);
 
       const first = await productsPage.grid.read(0);
-      await page.goto(routes.productDetails(first.id));
+      await page.goto(routes.productDetails(first.id), { waitUntil: 'domcontentloaded' });
       await expect(productDetail.field('Category')).toContainText(`${cat.parent} > `);
     });
   }
