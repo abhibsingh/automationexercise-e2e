@@ -17,8 +17,8 @@ test.describe('Sign in / sign out', () => {
     });
 
     await test.step('session survives reload and navigation', async () => {
-      await page.reload();
-      await page.goto(routes.products);
+      await page.reload({ waitUntil: 'domcontentloaded' });
+      await page.goto(routes.products, { waitUntil: 'domcontentloaded' });
       await loginPage.header.expectLoggedInAs(user.name);
     });
 

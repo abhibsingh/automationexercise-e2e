@@ -29,7 +29,7 @@ test.describe('Sign up', () => {
     });
 
     await test.step('delete account through the UI', async () => {
-      await page.goto(routes.deleteAccount);
+      await page.goto(routes.deleteAccount, { waitUntil: 'domcontentloaded' });
       await expect(page.getByTestId('account-deleted')).toBeVisible();
       expect((await api.verifyLogin(user.email, user.password)).responseCode).toBe(404);
     });
