@@ -27,7 +27,7 @@ export class CartPage extends BasePage {
   }
 
   async waitUntilReady(): Promise<void> {
-    await expect(this.rows.first().or(this.emptyMessage)).toBeVisible();
+    await expect(this.rows.first().or(this.page.locator('#empty_cart:visible'))).toBeVisible();
   }
 
   row(productId: number): Locator {
